@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ztbus_pg
+    environment:
+      POSTGRES_USER: ztbus
+      POSTGRES_PASSWORD: ztbus
+      POSTGRES_DB: ztbus
+    ports:
+      - "5437:5432"
+    volumes:
+      - ztbus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ztbus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ztbus_network
+
+volumes:
+  ztbus_postgres_data:
+    name: ztbus_postgres_data
+
+networks:
+  ztbus_network:
+    name: ztbus_network
+    driver: bridge
