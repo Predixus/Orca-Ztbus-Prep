@@ -7,12 +7,13 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"strings"
 )
 
 type cliFlags struct {
-	connStr string
-	migrate bool
+	connStr  string
+	migrate  bool
+	showHelp bool
+	platform string
 }
 
 var logLevels = []string{
@@ -90,20 +91,6 @@ func ValidatePort(s string) error {
 	return nil
 }
 
-func ValidateLogLevel(s string) error {
-	if s == "" {
-		return errors.New("You must select a log level")
-	}
-
-	s = strings.ToUpper(s)
-	for _, level := range logLevels {
-		if s == level {
-			return nil
-		}
-	}
-	return fmt.Errorf("Invalid log level: %s. Must be one of: %s", s, strings.Join(logLevels, ", "))
-}
-
 func parseFlags() cliFlags {
 	flags := cliFlags{}
 
@@ -115,8 +102,6 @@ func parseFlags() cliFlags {
 		"Data platform to use as the data layer (e.g., postgresql)",
 	)
 	flag.StringVar(&flags.connStr, "connStr", "", "Connection string to the datalayer")
-	flag.IntVar(&flags.port, "port", 4040, "Port number for the Orca server")
-	flag.StringVar(&flags.logLevel, "logLevel", "INFO", "Log level (DEBUG, INFO, WARN, ERROR)")
 	flag.BoolVar(&flags.showHelp, "help", false, "Show help")
 	flag.BoolVar(
 		&flags.migrate,
@@ -127,21 +112,6 @@ func parseFlags() cliFlags {
 	flag.Parse()
 
 	return flags
-}
-
-func parseLogLevel(level string) slog.Level {
-	switch level {
-	case "DEBUG":
-		return slog.LevelDebug
-	case "INFO":
-		return slog.LevelInfo
-	case "WARN":
-		return slog.LevelWarn
-	case "ERROR":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
 }
 
 func validateFlags(flags cliFlags) error {
@@ -163,14 +133,6 @@ func validateFlags(flags cliFlags) error {
 		return fmt.Errorf("invalid connection string: %w", err)
 	}
 
-	if err := ValidatePort(fmt.Sprintf("%d", flags.port)); err != nil {
-		return fmt.Errorf("invalid port: %w", err)
-	}
-
-	if err := ValidateLogLevel(flags.logLevel); err != nil {
-		return fmt.Errorf("invalid log level: %w", err)
-	}
-
 	return nil
 }
 
@@ -182,7 +144,7 @@ func runCLI(flags cliFlags) {
 
 	// stdout logger
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: parseLogLevel(flags.logLevel),
+		Level: slog.LevelDebug,
 	})
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
@@ -191,14 +153,12 @@ func runCLI(flags cliFlags) {
 	slog.Info("premigration")
 	if flags.migrate {
 		slog.Info("migrating datalayer")
-		err := dlyrs.MigrateDatalayer(flags.platform, flags.connStr)
+		err := MigrateDatalayer(flags.platform, flags.connStr)
 		if err != nil {
 			slog.Error("could not migrate the datalayer, exiting", "error", err)
 			os.Exit(1)
 		}
 	}
-	startGRPCServer(flags.platform, flags.connStr, flags.port, flags.logLevel)
-
 	// Keep main thread alive
 	select {}
 }

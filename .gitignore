@@ -33,3 +33,4 @@ go.work.sum
 
 # Custom
 *.null-ls*
+orca-ztbus-prep
