@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
+	"path/filepath"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // cli flags
@@ -94,9 +98,9 @@ func ValidateDataDir(d string) error {
 	if err != nil {
 		return fmt.Errorf("issue finding the data folder: %v", err)
 	}
-	_, err = os.Stat(d + "/metadata.csv")
+	_, err = os.Stat(filepath.Join(d, "/metaData.csv"))
 	if err != nil {
-		return fmt.Errorf("`metadata.csv` file not found in the provided folder: %v", err)
+		return fmt.Errorf("`metaData.csv` file not found in the provided folder: %v", err)
 	}
 	return nil
 }
@@ -148,10 +152,10 @@ func validateFlags(flags cliFlags) error {
 	return nil
 }
 
-func runCLI(flags cliFlags) {
+func runCLI(flags cliFlags) error {
 	if flags.showHelp {
 		flag.Usage()
-		return
+		return nil
 	}
 
 	// stdout logger
@@ -168,11 +172,44 @@ func runCLI(flags cliFlags) {
 		err := MigrateDatalayer(flags.platform, flags.connStr)
 		if err != nil {
 			slog.Error("could not migrate the datalayer, exiting", "error", err)
-			os.Exit(1)
+			return err
 		}
 	}
 	slog.Info("postmigration")
 	slog.Info("starting data load")
+
+	metadata, err := ParseMetadataCSV(filepath.Join(flags.dataDir, "metaData.csv"))
+
+	// create a connection with the postgresql db
+	ctx := context.Background()
+	db, err := pgx.Connect(ctx, flags.connStr)
+	if err != nil {
+		return fmt.Errorf("error connecting to the database: %v", err)
+	}
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("Could not start the transaction: %v", err)
+	}
+	defer tx.Rollback(ctx)
+	queries := New(db)
+
+	for ii, m := range metadata {
+		tx := queries.WithTx(tx)
+
+		// add bus
+		tx.CreateBus(ctx, m.BusNumber)
+
+		// add route
+    tx.CreateRoute(ctx, m.)
+
+		// grab the trip info for this metadata
+
+		// go through each row and gear up the
+	}
+	if err != nil {
+		return fmt.Errorf("Could not parse metadata file: %v", err)
+	}
+	return nil
 }
 
 func main() {
@@ -182,5 +219,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-	runCLI(flags)
+	err := runCLI(flags)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
 }

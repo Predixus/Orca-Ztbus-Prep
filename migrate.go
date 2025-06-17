@@ -16,7 +16,7 @@ var PostgresqlMigrations embed.FS
 func MigrateDatalayer(platform string, connStr string) error {
 	switch platform {
 	case "postgresql":
-		d, err := iofs.New(PostgresqlMigrations, "postgresql/migrations")
+		d, err := iofs.New(PostgresqlMigrations, "migrations")
 		if err != nil {
 			return fmt.Errorf("failed to load embedded migrations: %w", err)
 		}

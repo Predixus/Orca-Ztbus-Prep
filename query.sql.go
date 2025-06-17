@@ -81,15 +81,15 @@ type CreateTripParams struct {
 	RouteID              pgtype.Int4
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
-	DrivenDistanceKm     pgtype.Float4
-	EnergyConsumptionKWh pgtype.Float4
-	ItcsPassengersMean   pgtype.Float4
+	DrivenDistanceKm     pgtype.Numeric
+	EnergyConsumptionKWh pgtype.Numeric
+	ItcsPassengersMean   pgtype.Numeric
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4
-	GridAvailableMean    pgtype.Float4
-	TemperatureMean      pgtype.Float4
-	TemperatureMin       pgtype.Float4
-	TemperatureMax       pgtype.Float4
+	GridAvailableMean    pgtype.Numeric
+	TemperatureMean      pgtype.Numeric
+	TemperatureMin       pgtype.Numeric
+	TemperatureMax       pgtype.Numeric
 }
 
 func (q *Queries) CreateTrip(ctx context.Context, arg CreateTripParams) (int32, error) {
@@ -114,6 +114,16 @@ func (q *Queries) CreateTrip(ctx context.Context, arg CreateTripParams) (int32, 
 	return id, err
 }
 
+const deleteTelemetryByTrip = `-- name: DeleteTelemetryByTrip :exec
+DELETE FROM telemetry
+WHERE trip_id = $1
+`
+
+func (q *Queries) DeleteTelemetryByTrip(ctx context.Context, tripID int32) error {
+	_, err := q.db.Exec(ctx, deleteTelemetryByTrip, tripID)
+	return err
+}
+
 const deleteTripByName = `-- name: DeleteTripByName :exec
 DELETE FROM trips
 WHERE name = $1
@@ -122,6 +132,60 @@ WHERE name = $1
 func (q *Queries) DeleteTripByName(ctx context.Context, name string) error {
 	_, err := q.db.Exec(ctx, deleteTripByName, name)
 	return err
+}
+
+const getTelemetryByTrip = `-- name: GetTelemetryByTrip :many
+SELECT id, trip_id, time, electric_power_demand, temperature_ambient, traction_brake_pressure, traction_traction_force, gnss_altitude, gnss_course, gnss_latitude, gnss_longitude, itcs_bus_route, itcs_number_of_passengers, itcs_stop_name, odometry_articulation_angle, odometry_steering_angle, odometry_vehicle_speed, odometry_wheel_speed_fl, odometry_wheel_speed_fr, odometry_wheel_speed_ml, odometry_wheel_speed_mr, odometry_wheel_speed_rl, odometry_wheel_speed_rr, status_door_is_open, status_grid_is_available, status_halt_brake_is_active, status_park_brake_is_active FROM telemetry
+WHERE trip_id = $1
+ORDER BY time
+`
+
+func (q *Queries) GetTelemetryByTrip(ctx context.Context, tripID int32) ([]Telemetry, error) {
+	rows, err := q.db.Query(ctx, getTelemetryByTrip, tripID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Telemetry
+	for rows.Next() {
+		var i Telemetry
+		if err := rows.Scan(
+			&i.ID,
+			&i.TripID,
+			&i.Time,
+			&i.ElectricPowerDemand,
+			&i.TemperatureAmbient,
+			&i.TractionBrakePressure,
+			&i.TractionTractionForce,
+			&i.GnssAltitude,
+			&i.GnssCourse,
+			&i.GnssLatitude,
+			&i.GnssLongitude,
+			&i.ItcsBusRoute,
+			&i.ItcsNumberOfPassengers,
+			&i.ItcsStopName,
+			&i.OdometryArticulationAngle,
+			&i.OdometrySteeringAngle,
+			&i.OdometryVehicleSpeed,
+			&i.OdometryWheelSpeedFl,
+			&i.OdometryWheelSpeedFr,
+			&i.OdometryWheelSpeedMl,
+			&i.OdometryWheelSpeedMr,
+			&i.OdometryWheelSpeedRl,
+			&i.OdometryWheelSpeedRr,
+			&i.StatusDoorIsOpen,
+			&i.StatusGridIsAvailable,
+			&i.StatusHaltBrakeIsActive,
+			&i.StatusParkBrakeIsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getTripByName = `-- name: GetTripByName :one
@@ -284,6 +348,126 @@ func (q *Queries) GetTripsByTimeRange(ctx context.Context, arg GetTripsByTimeRan
 	return items, nil
 }
 
+const insertTelemetry = `-- name: InsertTelemetry :exec
+INSERT INTO telemetry (
+  trip_id,
+  time,
+  electric_power_demand,
+  gnss_altitude,
+  gnss_course,
+  gnss_latitude,
+  gnss_longitude,
+  itcs_bus_route,
+  itcs_number_of_passengers,
+  itcs_stop_name,
+  odometry_articulation_angle,
+  odometry_steering_angle,
+  odometry_vehicle_speed,
+  odometry_wheel_speed_fl,
+  odometry_wheel_speed_fr,
+  odometry_wheel_speed_ml,
+  odometry_wheel_speed_mr,
+  odometry_wheel_speed_rl,
+  odometry_wheel_speed_rr,
+  status_door_is_open,
+  status_grid_is_available,
+  status_halt_brake_is_active,
+  status_park_brake_is_active,
+  temperature_ambient,
+  traction_brake_pressure,
+  traction_traction_force
+)
+VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8,
+  $9,
+  $10,
+  $11,
+  $12,
+  $13,
+  $14,
+  $15,
+  $16,
+  $17,
+  $18,
+  $19,
+  $20,
+  $21,
+  $22,
+  $23,
+  $24,
+  $25,
+  $26
+)
+`
+
+type InsertTelemetryParams struct {
+	TripID                    int32
+	Time                      pgtype.Timestamp
+	ElectricPowerDemand       pgtype.Numeric
+	GnssAltitude              pgtype.Numeric
+	GnssCourse                pgtype.Numeric
+	GnssLatitude              pgtype.Numeric
+	GnssLongitude             pgtype.Numeric
+	ItcsBusRoute              pgtype.Text
+	ItcsNumberOfPassengers    pgtype.Numeric
+	ItcsStopName              pgtype.Text
+	OdometryArticulationAngle pgtype.Numeric
+	OdometrySteeringAngle     pgtype.Numeric
+	OdometryVehicleSpeed      pgtype.Numeric
+	OdometryWheelSpeedFl      pgtype.Numeric
+	OdometryWheelSpeedFr      pgtype.Numeric
+	OdometryWheelSpeedMl      pgtype.Numeric
+	OdometryWheelSpeedMr      pgtype.Numeric
+	OdometryWheelSpeedRl      pgtype.Numeric
+	OdometryWheelSpeedRr      pgtype.Numeric
+	StatusDoorIsOpen          pgtype.Bool
+	StatusGridIsAvailable     pgtype.Bool
+	StatusHaltBrakeIsActive   pgtype.Bool
+	StatusParkBrakeIsActive   pgtype.Bool
+	TemperatureAmbient        pgtype.Numeric
+	TractionBrakePressure     pgtype.Numeric
+	TractionTractionForce     pgtype.Numeric
+}
+
+func (q *Queries) InsertTelemetry(ctx context.Context, arg InsertTelemetryParams) error {
+	_, err := q.db.Exec(ctx, insertTelemetry,
+		arg.TripID,
+		arg.Time,
+		arg.ElectricPowerDemand,
+		arg.GnssAltitude,
+		arg.GnssCourse,
+		arg.GnssLatitude,
+		arg.GnssLongitude,
+		arg.ItcsBusRoute,
+		arg.ItcsNumberOfPassengers,
+		arg.ItcsStopName,
+		arg.OdometryArticulationAngle,
+		arg.OdometrySteeringAngle,
+		arg.OdometryVehicleSpeed,
+		arg.OdometryWheelSpeedFl,
+		arg.OdometryWheelSpeedFr,
+		arg.OdometryWheelSpeedMl,
+		arg.OdometryWheelSpeedMr,
+		arg.OdometryWheelSpeedRl,
+		arg.OdometryWheelSpeedRr,
+		arg.StatusDoorIsOpen,
+		arg.StatusGridIsAvailable,
+		arg.StatusHaltBrakeIsActive,
+		arg.StatusParkBrakeIsActive,
+		arg.TemperatureAmbient,
+		arg.TractionBrakePressure,
+		arg.TractionTractionForce,
+	)
+	return err
+}
+
 const listAllTrips = `-- name: ListAllTrips :many
 SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, temperature_mean, temperature_min, temperature_max FROM trips
 ORDER BY start_time
@@ -375,6 +559,68 @@ func (q *Queries) ListRoutes(ctx context.Context) ([]BusRoute, error) {
 	return items, nil
 }
 
+const listTelemetryInRange = `-- name: ListTelemetryInRange :many
+SELECT id, trip_id, time, electric_power_demand, temperature_ambient, traction_brake_pressure, traction_traction_force, gnss_altitude, gnss_course, gnss_latitude, gnss_longitude, itcs_bus_route, itcs_number_of_passengers, itcs_stop_name, odometry_articulation_angle, odometry_steering_angle, odometry_vehicle_speed, odometry_wheel_speed_fl, odometry_wheel_speed_fr, odometry_wheel_speed_ml, odometry_wheel_speed_mr, odometry_wheel_speed_rl, odometry_wheel_speed_rr, status_door_is_open, status_grid_is_available, status_halt_brake_is_active, status_park_brake_is_active FROM telemetry
+WHERE trip_id = $1
+  AND time >= $2
+  AND time <= $3
+ORDER BY time
+`
+
+type ListTelemetryInRangeParams struct {
+	TripID    int32
+	StartTime pgtype.Timestamp
+	EndTime   pgtype.Timestamp
+}
+
+func (q *Queries) ListTelemetryInRange(ctx context.Context, arg ListTelemetryInRangeParams) ([]Telemetry, error) {
+	rows, err := q.db.Query(ctx, listTelemetryInRange, arg.TripID, arg.StartTime, arg.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Telemetry
+	for rows.Next() {
+		var i Telemetry
+		if err := rows.Scan(
+			&i.ID,
+			&i.TripID,
+			&i.Time,
+			&i.ElectricPowerDemand,
+			&i.TemperatureAmbient,
+			&i.TractionBrakePressure,
+			&i.TractionTractionForce,
+			&i.GnssAltitude,
+			&i.GnssCourse,
+			&i.GnssLatitude,
+			&i.GnssLongitude,
+			&i.ItcsBusRoute,
+			&i.ItcsNumberOfPassengers,
+			&i.ItcsStopName,
+			&i.OdometryArticulationAngle,
+			&i.OdometrySteeringAngle,
+			&i.OdometryVehicleSpeed,
+			&i.OdometryWheelSpeedFl,
+			&i.OdometryWheelSpeedFr,
+			&i.OdometryWheelSpeedMl,
+			&i.OdometryWheelSpeedMr,
+			&i.OdometryWheelSpeedRl,
+			&i.OdometryWheelSpeedRr,
+			&i.StatusDoorIsOpen,
+			&i.StatusGridIsAvailable,
+			&i.StatusHaltBrakeIsActive,
+			&i.StatusParkBrakeIsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTrip = `-- name: UpdateTrip :exec
 UPDATE trips
 SET
@@ -399,15 +645,15 @@ type UpdateTripParams struct {
 	RouteID              pgtype.Int4
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
-	DrivenDistanceKm     pgtype.Float4
-	EnergyConsumptionKWh pgtype.Float4
-	ItcsPassengersMean   pgtype.Float4
+	DrivenDistanceKm     pgtype.Numeric
+	EnergyConsumptionKWh pgtype.Numeric
+	ItcsPassengersMean   pgtype.Numeric
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4
-	GridAvailableMean    pgtype.Float4
-	TemperatureMean      pgtype.Float4
-	TemperatureMin       pgtype.Float4
-	TemperatureMax       pgtype.Float4
+	GridAvailableMean    pgtype.Numeric
+	TemperatureMean      pgtype.Numeric
+	TemperatureMin       pgtype.Numeric
+	TemperatureMax       pgtype.Numeric
 	Name                 string
 }
 

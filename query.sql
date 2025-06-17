@@ -99,3 +99,77 @@ ORDER BY bus_number;
 SELECT * FROM bus_routes
 ORDER BY route_code;
 
+-- name: InsertTelemetry :exec
+INSERT INTO telemetry (
+  trip_id,
+  time,
+  electric_power_demand,
+  gnss_altitude,
+  gnss_course,
+  gnss_latitude,
+  gnss_longitude,
+  itcs_bus_route,
+  itcs_number_of_passengers,
+  itcs_stop_name,
+  odometry_articulation_angle,
+  odometry_steering_angle,
+  odometry_vehicle_speed,
+  odometry_wheel_speed_fl,
+  odometry_wheel_speed_fr,
+  odometry_wheel_speed_ml,
+  odometry_wheel_speed_mr,
+  odometry_wheel_speed_rl,
+  odometry_wheel_speed_rr,
+  status_door_is_open,
+  status_grid_is_available,
+  status_halt_brake_is_active,
+  status_park_brake_is_active,
+  temperature_ambient,
+  traction_brake_pressure,
+  traction_traction_force
+)
+VALUES (
+  sqlc.arg('trip_id'),
+  sqlc.arg('time'),
+  sqlc.arg('electric_power_demand'),
+  sqlc.arg('gnss_altitude'),
+  sqlc.arg('gnss_course'),
+  sqlc.arg('gnss_latitude'),
+  sqlc.arg('gnss_longitude'),
+  sqlc.arg('itcs_bus_route'),
+  sqlc.arg('itcs_number_of_passengers'),
+  sqlc.arg('itcs_stop_name'),
+  sqlc.arg('odometry_articulation_angle'),
+  sqlc.arg('odometry_steering_angle'),
+  sqlc.arg('odometry_vehicle_speed'),
+  sqlc.arg('odometry_wheel_speed_fl'),
+  sqlc.arg('odometry_wheel_speed_fr'),
+  sqlc.arg('odometry_wheel_speed_ml'),
+  sqlc.arg('odometry_wheel_speed_mr'),
+  sqlc.arg('odometry_wheel_speed_rl'),
+  sqlc.arg('odometry_wheel_speed_rr'),
+  sqlc.arg('status_door_is_open'),
+  sqlc.arg('status_grid_is_available'),
+  sqlc.arg('status_halt_brake_is_active'),
+  sqlc.arg('status_park_brake_is_active'),
+  sqlc.arg('temperature_ambient'),
+  sqlc.arg('traction_brake_pressure'),
+  sqlc.arg('traction_traction_force')
+);
+
+-- name: GetTelemetryByTrip :many
+SELECT * FROM telemetry
+WHERE trip_id = sqlc.arg('trip_id')
+ORDER BY time;
+
+-- name: ListTelemetryInRange :many
+SELECT * FROM telemetry
+WHERE trip_id = sqlc.arg('trip_id')
+  AND time >= sqlc.arg('start_time')
+  AND time <= sqlc.arg('end_time')
+ORDER BY time;
+
+-- name: DeleteTelemetryByTrip :exec
+DELETE FROM telemetry
+WHERE trip_id = sqlc.arg('trip_id');
+

@@ -18,6 +18,36 @@ type BusRoute struct {
 	RouteCode pgtype.Text
 }
 
+type Telemetry struct {
+	ID                        int32
+	TripID                    int32
+	Time                      pgtype.Timestamp
+	ElectricPowerDemand       pgtype.Numeric
+	TemperatureAmbient        pgtype.Numeric
+	TractionBrakePressure     pgtype.Numeric
+	TractionTractionForce     pgtype.Numeric
+	GnssAltitude              pgtype.Numeric
+	GnssCourse                pgtype.Numeric
+	GnssLatitude              pgtype.Numeric
+	GnssLongitude             pgtype.Numeric
+	ItcsBusRoute              pgtype.Text
+	ItcsNumberOfPassengers    pgtype.Numeric
+	ItcsStopName              pgtype.Text
+	OdometryArticulationAngle pgtype.Numeric
+	OdometrySteeringAngle     pgtype.Numeric
+	OdometryVehicleSpeed      pgtype.Numeric
+	OdometryWheelSpeedFl      pgtype.Numeric
+	OdometryWheelSpeedFr      pgtype.Numeric
+	OdometryWheelSpeedMl      pgtype.Numeric
+	OdometryWheelSpeedMr      pgtype.Numeric
+	OdometryWheelSpeedRl      pgtype.Numeric
+	OdometryWheelSpeedRr      pgtype.Numeric
+	StatusDoorIsOpen          pgtype.Bool
+	StatusGridIsAvailable     pgtype.Bool
+	StatusHaltBrakeIsActive   pgtype.Bool
+	StatusParkBrakeIsActive   pgtype.Bool
+}
+
 type Trip struct {
 	ID                   int32
 	Name                 string
@@ -25,13 +55,13 @@ type Trip struct {
 	RouteID              pgtype.Int4
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
-	DrivenDistanceKm     pgtype.Float4
-	EnergyConsumptionKwh pgtype.Float4
-	ItcsPassengersMean   pgtype.Float4
+	DrivenDistanceKm     pgtype.Numeric
+	EnergyConsumptionKwh pgtype.Numeric
+	ItcsPassengersMean   pgtype.Numeric
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4
-	GridAvailableMean    pgtype.Float4
-	TemperatureMean      pgtype.Float4
-	TemperatureMin       pgtype.Float4
-	TemperatureMax       pgtype.Float4
+	GridAvailableMean    pgtype.Numeric
+	TemperatureMean      pgtype.Numeric
+	TemperatureMin       pgtype.Numeric
+	TemperatureMax       pgtype.Numeric
 }
