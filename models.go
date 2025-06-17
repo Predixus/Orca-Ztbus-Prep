@@ -22,26 +22,26 @@ type Telemetry struct {
 	ID                        int32
 	TripID                    int32
 	Time                      pgtype.Timestamp
-	ElectricPowerDemand       pgtype.Numeric
-	TemperatureAmbient        pgtype.Numeric
-	TractionBrakePressure     pgtype.Numeric
-	TractionTractionForce     pgtype.Numeric
-	GnssAltitude              pgtype.Numeric
-	GnssCourse                pgtype.Numeric
-	GnssLatitude              pgtype.Numeric
-	GnssLongitude             pgtype.Numeric
+	ElectricPowerDemand       pgtype.Float4
+	TemperatureAmbient        pgtype.Float4
+	TractionBrakePressure     pgtype.Float4
+	TractionTractionForce     pgtype.Float4
+	GnssAltitude              pgtype.Float4
+	GnssCourse                pgtype.Float4
+	GnssLatitude              pgtype.Float4
+	GnssLongitude             pgtype.Float4
 	ItcsBusRoute              pgtype.Text
-	ItcsNumberOfPassengers    pgtype.Numeric
+	ItcsNumberOfPassengers    pgtype.Float4
 	ItcsStopName              pgtype.Text
-	OdometryArticulationAngle pgtype.Numeric
-	OdometrySteeringAngle     pgtype.Numeric
-	OdometryVehicleSpeed      pgtype.Numeric
-	OdometryWheelSpeedFl      pgtype.Numeric
-	OdometryWheelSpeedFr      pgtype.Numeric
-	OdometryWheelSpeedMl      pgtype.Numeric
-	OdometryWheelSpeedMr      pgtype.Numeric
-	OdometryWheelSpeedRl      pgtype.Numeric
-	OdometryWheelSpeedRr      pgtype.Numeric
+	OdometryArticulationAngle pgtype.Float4
+	OdometrySteeringAngle     pgtype.Float4
+	OdometryVehicleSpeed      pgtype.Float4
+	OdometryWheelSpeedFl      pgtype.Float4
+	OdometryWheelSpeedFr      pgtype.Float4
+	OdometryWheelSpeedMl      pgtype.Float4
+	OdometryWheelSpeedMr      pgtype.Float4
+	OdometryWheelSpeedRl      pgtype.Float4
+	OdometryWheelSpeedRr      pgtype.Float4
 	StatusDoorIsOpen          pgtype.Bool
 	StatusGridIsAvailable     pgtype.Bool
 	StatusHaltBrakeIsActive   pgtype.Bool
@@ -55,13 +55,13 @@ type Trip struct {
 	RouteID              pgtype.Int4
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
-	DrivenDistanceKm     pgtype.Numeric
-	EnergyConsumptionKwh pgtype.Numeric
-	ItcsPassengersMean   pgtype.Numeric
+	DrivenDistanceKm     pgtype.Float4
+	EnergyConsumptionKwh pgtype.Float4
+	ItcsPassengersMean   pgtype.Float4
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4
-	GridAvailableMean    pgtype.Numeric
-	TemperatureMean      pgtype.Numeric
-	TemperatureMin       pgtype.Numeric
-	TemperatureMax       pgtype.Numeric
+	GridAvailableMean    pgtype.Float4
+	AmbTemperatureMean   pgtype.Float4
+	AmbTemperatureMin    pgtype.Float4
+	AmbTemperatureMax    pgtype.Float4
 }

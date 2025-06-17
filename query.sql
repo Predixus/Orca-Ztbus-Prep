@@ -23,9 +23,9 @@ INSERT INTO trips (
   itcs_passengers_min,
   itcs_passengers_max,
   grid_available_mean,
-  temperature_mean,
-  temperature_min,
-  temperature_max
+  amb_temperature_mean,
+  amb_temperature_min,
+  amb_temperature_max
 )
 VALUES (
   sqlc.arg('name'),
@@ -78,9 +78,9 @@ SET
   itcs_passengers_min = sqlc.arg('itcs_passengers_min'),
   itcs_passengers_max = sqlc.arg('itcs_passengers_max'),
   grid_available_mean = sqlc.arg('grid_available_mean'),
-  temperature_mean = sqlc.arg('temperature_mean'),
-  temperature_min = sqlc.arg('temperature_min'),
-  temperature_max = sqlc.arg('temperature_max')
+  amb_temperature_mean = sqlc.arg('temperature_mean'),
+  amb_temperature_min = sqlc.arg('temperature_min'),
+  amb_temperature_max = sqlc.arg('temperature_max')
 WHERE name = sqlc.arg('name');
 
 -- name: DeleteTripByName :exec

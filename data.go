@@ -9,7 +9,7 @@ import (
 
 type Metadata struct {
 	Name                       string
-	BusNumber                  int
+	BusNumber                  string
 	StartTimeUnix              int
 	EndTimeUnix                int
 	DrivenDistance             float64
@@ -120,7 +120,7 @@ func ParseMetadataCSV(path string) ([]Metadata, error) {
 
 		m := Metadata{
 			Name:                       get("name"),
-			BusNumber:                  parseI(get("busNumber")),
+			BusNumber:                  get("busNumber"),
 			StartTimeUnix:              parseI(get("startTime_unix")),
 			EndTimeUnix:                parseI(get("endTime_unix")),
 			DrivenDistance:             parseF(get("drivenDistance")),

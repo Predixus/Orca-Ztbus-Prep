@@ -18,21 +18,21 @@ CREATE TABLE trips (
     route_id INTEGER REFERENCES bus_routes(id) ON DELETE SET NULL,
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
-    driven_distance_km NUMERIC,
-    energy_consumption_kWh NUMERIC,
+    driven_distance_km REAL,
+    energy_consumption_kWh REAL,
     
     -- ITCS passenger stats
-    itcs_passengers_mean NUMERIC,
+    itcs_passengers_mean REAL,
     itcs_passengers_min INTEGER,
     itcs_passengers_max INTEGER,
     
     -- Grid status
-    grid_available_mean NUMERIC,
+    grid_available_mean REAL,
 
     -- Ambient temperature stats
-    temperature_mean NUMERIC,
-    temperature_min NUMERIC,
-    temperature_max NUMERIC
+    amb_temperature_mean REAL,
+    amb_temperature_min REAL,
+    amb_temperature_max REAL
 );
 
 -- Trip telemetry
@@ -41,32 +41,32 @@ CREATE TABLE telemetry (
     trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     time TIMESTAMP NOT NULL,
 
-    electric_power_demand NUMERIC,
-    temperature_ambient NUMERIC,
-    traction_brake_pressure NUMERIC,
-    traction_traction_force NUMERIC,
+    electric_power_demand REAL,
+    temperature_ambient REAL,
+    traction_brake_pressure REAL,
+    traction_traction_force REAL,
     
     -- GNSS
-    gnss_altitude NUMERIC,
-    gnss_course NUMERIC,
-    gnss_latitude NUMERIC,
-    gnss_longitude NUMERIC,
+    gnss_altitude REAL,
+    gnss_course REAL,
+    gnss_latitude REAL,
+    gnss_longitude REAL,
 
     -- itcs
     itcs_bus_route TEXT,
-    itcs_number_of_passengers NUMERIC,
+    itcs_number_of_passengers REAL,
     itcs_stop_name TEXT,
 
     -- Odemetry
-    odometry_articulation_angle NUMERIC,
-    odometry_steering_angle NUMERIC,
-    odometry_vehicle_speed NUMERIC,
-    odometry_wheel_speed_fl NUMERIC,
-    odometry_wheel_speed_fr NUMERIC,
-    odometry_wheel_speed_ml NUMERIC,
-    odometry_wheel_speed_mr NUMERIC,
-    odometry_wheel_speed_rl NUMERIC,
-    odometry_wheel_speed_rr NUMERIC,
+    odometry_articulation_angle REAL,
+    odometry_steering_angle REAL,
+    odometry_vehicle_speed REAL,
+    odometry_wheel_speed_fl REAL,
+    odometry_wheel_speed_fr REAL,
+    odometry_wheel_speed_ml REAL,
+    odometry_wheel_speed_mr REAL,
+    odometry_wheel_speed_rl REAL,
+    odometry_wheel_speed_rr REAL,
   
     -- Statuses
     status_door_is_open BOOLEAN,

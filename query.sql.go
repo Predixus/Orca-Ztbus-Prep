@@ -52,9 +52,9 @@ INSERT INTO trips (
   itcs_passengers_min,
   itcs_passengers_max,
   grid_available_mean,
-  temperature_mean,
-  temperature_min,
-  temperature_max
+  amb_temperature_mean,
+  amb_temperature_min,
+  amb_temperature_max
 )
 VALUES (
   $1,
@@ -81,15 +81,15 @@ type CreateTripParams struct {
 	RouteID              pgtype.Int4
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
-	DrivenDistanceKm     pgtype.Numeric
-	EnergyConsumptionKWh pgtype.Numeric
-	ItcsPassengersMean   pgtype.Numeric
+	DrivenDistanceKm     pgtype.Float4
+	EnergyConsumptionKWh pgtype.Float4
+	ItcsPassengersMean   pgtype.Float4
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4
-	GridAvailableMean    pgtype.Numeric
-	TemperatureMean      pgtype.Numeric
-	TemperatureMin       pgtype.Numeric
-	TemperatureMax       pgtype.Numeric
+	GridAvailableMean    pgtype.Float4
+	TemperatureMean      pgtype.Float4
+	TemperatureMin       pgtype.Float4
+	TemperatureMax       pgtype.Float4
 }
 
 func (q *Queries) CreateTrip(ctx context.Context, arg CreateTripParams) (int32, error) {
@@ -189,7 +189,7 @@ func (q *Queries) GetTelemetryByTrip(ctx context.Context, tripID int32) ([]Telem
 }
 
 const getTripByName = `-- name: GetTripByName :one
-SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, temperature_mean, temperature_min, temperature_max FROM trips
+SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, amb_temperature_mean, amb_temperature_min, amb_temperature_max FROM trips
 WHERE name = $1
 `
 
@@ -209,15 +209,15 @@ func (q *Queries) GetTripByName(ctx context.Context, name string) (Trip, error) 
 		&i.ItcsPassengersMin,
 		&i.ItcsPassengersMax,
 		&i.GridAvailableMean,
-		&i.TemperatureMean,
-		&i.TemperatureMin,
-		&i.TemperatureMax,
+		&i.AmbTemperatureMean,
+		&i.AmbTemperatureMin,
+		&i.AmbTemperatureMax,
 	)
 	return i, err
 }
 
 const getTripsByBus = `-- name: GetTripsByBus :many
-SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, temperature_mean, temperature_min, temperature_max FROM trips
+SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, amb_temperature_mean, amb_temperature_min, amb_temperature_max FROM trips
 WHERE bus_id = $1
 ORDER BY start_time
 `
@@ -244,9 +244,9 @@ func (q *Queries) GetTripsByBus(ctx context.Context, busID pgtype.Int4) ([]Trip,
 			&i.ItcsPassengersMin,
 			&i.ItcsPassengersMax,
 			&i.GridAvailableMean,
-			&i.TemperatureMean,
-			&i.TemperatureMin,
-			&i.TemperatureMax,
+			&i.AmbTemperatureMean,
+			&i.AmbTemperatureMin,
+			&i.AmbTemperatureMax,
 		); err != nil {
 			return nil, err
 		}
@@ -259,7 +259,7 @@ func (q *Queries) GetTripsByBus(ctx context.Context, busID pgtype.Int4) ([]Trip,
 }
 
 const getTripsByRoute = `-- name: GetTripsByRoute :many
-SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, temperature_mean, temperature_min, temperature_max FROM trips
+SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, amb_temperature_mean, amb_temperature_min, amb_temperature_max FROM trips
 WHERE route_id = $1
 ORDER BY start_time
 `
@@ -286,9 +286,9 @@ func (q *Queries) GetTripsByRoute(ctx context.Context, routeID pgtype.Int4) ([]T
 			&i.ItcsPassengersMin,
 			&i.ItcsPassengersMax,
 			&i.GridAvailableMean,
-			&i.TemperatureMean,
-			&i.TemperatureMin,
-			&i.TemperatureMax,
+			&i.AmbTemperatureMean,
+			&i.AmbTemperatureMin,
+			&i.AmbTemperatureMax,
 		); err != nil {
 			return nil, err
 		}
@@ -301,7 +301,7 @@ func (q *Queries) GetTripsByRoute(ctx context.Context, routeID pgtype.Int4) ([]T
 }
 
 const getTripsByTimeRange = `-- name: GetTripsByTimeRange :many
-SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, temperature_mean, temperature_min, temperature_max FROM trips
+SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, amb_temperature_mean, amb_temperature_min, amb_temperature_max FROM trips
 WHERE start_time >= $1
   AND end_time <= $2
 ORDER BY start_time
@@ -334,9 +334,9 @@ func (q *Queries) GetTripsByTimeRange(ctx context.Context, arg GetTripsByTimeRan
 			&i.ItcsPassengersMin,
 			&i.ItcsPassengersMax,
 			&i.GridAvailableMean,
-			&i.TemperatureMean,
-			&i.TemperatureMin,
-			&i.TemperatureMax,
+			&i.AmbTemperatureMean,
+			&i.AmbTemperatureMin,
+			&i.AmbTemperatureMax,
 		); err != nil {
 			return nil, err
 		}
@@ -410,30 +410,30 @@ VALUES (
 type InsertTelemetryParams struct {
 	TripID                    int32
 	Time                      pgtype.Timestamp
-	ElectricPowerDemand       pgtype.Numeric
-	GnssAltitude              pgtype.Numeric
-	GnssCourse                pgtype.Numeric
-	GnssLatitude              pgtype.Numeric
-	GnssLongitude             pgtype.Numeric
+	ElectricPowerDemand       pgtype.Float4
+	GnssAltitude              pgtype.Float4
+	GnssCourse                pgtype.Float4
+	GnssLatitude              pgtype.Float4
+	GnssLongitude             pgtype.Float4
 	ItcsBusRoute              pgtype.Text
-	ItcsNumberOfPassengers    pgtype.Numeric
+	ItcsNumberOfPassengers    pgtype.Float4
 	ItcsStopName              pgtype.Text
-	OdometryArticulationAngle pgtype.Numeric
-	OdometrySteeringAngle     pgtype.Numeric
-	OdometryVehicleSpeed      pgtype.Numeric
-	OdometryWheelSpeedFl      pgtype.Numeric
-	OdometryWheelSpeedFr      pgtype.Numeric
-	OdometryWheelSpeedMl      pgtype.Numeric
-	OdometryWheelSpeedMr      pgtype.Numeric
-	OdometryWheelSpeedRl      pgtype.Numeric
-	OdometryWheelSpeedRr      pgtype.Numeric
+	OdometryArticulationAngle pgtype.Float4
+	OdometrySteeringAngle     pgtype.Float4
+	OdometryVehicleSpeed      pgtype.Float4
+	OdometryWheelSpeedFl      pgtype.Float4
+	OdometryWheelSpeedFr      pgtype.Float4
+	OdometryWheelSpeedMl      pgtype.Float4
+	OdometryWheelSpeedMr      pgtype.Float4
+	OdometryWheelSpeedRl      pgtype.Float4
+	OdometryWheelSpeedRr      pgtype.Float4
 	StatusDoorIsOpen          pgtype.Bool
 	StatusGridIsAvailable     pgtype.Bool
 	StatusHaltBrakeIsActive   pgtype.Bool
 	StatusParkBrakeIsActive   pgtype.Bool
-	TemperatureAmbient        pgtype.Numeric
-	TractionBrakePressure     pgtype.Numeric
-	TractionTractionForce     pgtype.Numeric
+	TemperatureAmbient        pgtype.Float4
+	TractionBrakePressure     pgtype.Float4
+	TractionTractionForce     pgtype.Float4
 }
 
 func (q *Queries) InsertTelemetry(ctx context.Context, arg InsertTelemetryParams) error {
@@ -469,7 +469,7 @@ func (q *Queries) InsertTelemetry(ctx context.Context, arg InsertTelemetryParams
 }
 
 const listAllTrips = `-- name: ListAllTrips :many
-SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, temperature_mean, temperature_min, temperature_max FROM trips
+SELECT id, name, bus_id, route_id, start_time, end_time, driven_distance_km, energy_consumption_kwh, itcs_passengers_mean, itcs_passengers_min, itcs_passengers_max, grid_available_mean, amb_temperature_mean, amb_temperature_min, amb_temperature_max FROM trips
 ORDER BY start_time
 `
 
@@ -495,9 +495,9 @@ func (q *Queries) ListAllTrips(ctx context.Context) ([]Trip, error) {
 			&i.ItcsPassengersMin,
 			&i.ItcsPassengersMax,
 			&i.GridAvailableMean,
-			&i.TemperatureMean,
-			&i.TemperatureMin,
-			&i.TemperatureMax,
+			&i.AmbTemperatureMean,
+			&i.AmbTemperatureMin,
+			&i.AmbTemperatureMax,
 		); err != nil {
 			return nil, err
 		}
@@ -634,9 +634,9 @@ SET
   itcs_passengers_min = $8,
   itcs_passengers_max = $9,
   grid_available_mean = $10,
-  temperature_mean = $11,
-  temperature_min = $12,
-  temperature_max = $13
+  amb_temperature_mean = $11,
+  amb_temperature_min = $12,
+  amb_temperature_max = $13
 WHERE name = $14
 `
 
@@ -645,15 +645,15 @@ type UpdateTripParams struct {
 	RouteID              pgtype.Int4
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
-	DrivenDistanceKm     pgtype.Numeric
-	EnergyConsumptionKWh pgtype.Numeric
-	ItcsPassengersMean   pgtype.Numeric
+	DrivenDistanceKm     pgtype.Float4
+	EnergyConsumptionKWh pgtype.Float4
+	ItcsPassengersMean   pgtype.Float4
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4
-	GridAvailableMean    pgtype.Numeric
-	TemperatureMean      pgtype.Numeric
-	TemperatureMin       pgtype.Numeric
-	TemperatureMax       pgtype.Numeric
+	GridAvailableMean    pgtype.Float4
+	TemperatureMean      pgtype.Float4
+	TemperatureMin       pgtype.Float4
+	TemperatureMax       pgtype.Float4
 	Name                 string
 }
 

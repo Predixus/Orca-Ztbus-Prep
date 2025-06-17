@@ -9,11 +9,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
-)
-
-// cli flags
+	"github.com/jackc/pgx/v5/pgtype"
+) // cli flags
 type cliFlags struct {
 	connStr  string
 	migrate  bool
@@ -186,23 +187,47 @@ func runCLI(flags cliFlags) error {
 	if err != nil {
 		return fmt.Errorf("error connecting to the database: %v", err)
 	}
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("Could not start the transaction: %v", err)
-	}
-	defer tx.Rollback(ctx)
 	queries := New(db)
 
-	for ii, m := range metadata {
-		tx := queries.WithTx(tx)
+	// for each trip
+	for _, m := range metadata {
+		tx, err := db.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("Could not start the transaction: %v", err)
+		}
+		defer tx.Rollback(ctx)
+
+		qtx := queries.WithTx(tx)
 
 		// add bus
-		tx.CreateBus(ctx, m.BusNumber)
+		busId, err := qtx.CreateBus(ctx, pgtype.Text{String: m.BusNumber, Valid: true})
+		if err != nil {
+			return fmt.Errorf("could not create bus id: %v", err)
+		}
 
 		// add route
-    tx.CreateRoute(ctx, m.)
+		routeId, err := qtx.CreateRoute(ctx, pgtype.Text{String: m.BusRoute, Valid: true})
+		if err != nil {
+			return fmt.Errorf("could not create route id: %v", err)
+		}
 
 		// grab the trip info for this metadata
+		qtx.CreateTrip(ctx, CreateTripParams{
+			Name:                 m.Name,
+			BusID:                pgtype.Int4{Int32: busId, Valid: true},
+			RouteID:              pgtype.Int4{Int32: routeId, Valid: true},
+			StartTime:            pgtype.Timestamp{Time: time.Unix(m.StartTimeUnix)},
+			EndTime:              pgtype.Timestamp{Time: time.Unix(m.EndTimeUnix)},
+			DrivenDistanceKm:     m.DrivenDistance,
+			EnergyConsumptionKWh: m.EnergyConsumption,
+			ItcsPassengersMean:   m.ItcsNumberOfPassengersMean,
+			ItcsPassengersMin:    m.ItcsNumberOfPassengersMin,
+			ItcsPassengersMax:    m.ItcsNumberOfPassengersMax,
+			GridAvailableMean:    m.StatusGridIsAvailableMean,
+			TemperatureMean:      m.TemperatureAmbientMean,
+			TemperatureMin:       m.TemperatureAmbientMin,
+			TemperatureMax:       m.TemperatureAmbientMax,
+		})
 
 		// go through each row and gear up the
 	}
