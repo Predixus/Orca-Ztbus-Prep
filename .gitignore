@@ -29,7 +29,8 @@ go.work.sum
 
 # Editor/IDE
 # .idea/
-# .vscode/
+.vscode/
 
 # Custom
 *.null-ls*
+orca-ztbus-prep
