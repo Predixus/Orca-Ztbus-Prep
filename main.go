@@ -14,7 +14,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/schollz/progressbar/v3"
-) // cli flags
+)
+
+// cli flags
 type cliFlags struct {
 	connStr  string
 	migrate  bool
