@@ -82,7 +82,7 @@ type CreateTripParams struct {
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
 	DrivenDistanceKm     pgtype.Float4
-	EnergyConsumptionKWh pgtype.Float4
+	EnergyConsumptionKWh pgtype.Int4
 	ItcsPassengersMean   pgtype.Float4
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4
@@ -135,7 +135,7 @@ func (q *Queries) DeleteTripByName(ctx context.Context, name string) error {
 }
 
 const getTelemetryByTrip = `-- name: GetTelemetryByTrip :many
-SELECT id, trip_id, time, electric_power_demand, temperature_ambient, traction_brake_pressure, traction_traction_force, gnss_altitude, gnss_course, gnss_latitude, gnss_longitude, itcs_bus_route, itcs_number_of_passengers, itcs_stop_name, odometry_articulation_angle, odometry_steering_angle, odometry_vehicle_speed, odometry_wheel_speed_fl, odometry_wheel_speed_fr, odometry_wheel_speed_ml, odometry_wheel_speed_mr, odometry_wheel_speed_rl, odometry_wheel_speed_rr, status_door_is_open, status_grid_is_available, status_halt_brake_is_active, status_park_brake_is_active FROM telemetry
+SELECT id, trip_id, time, electric_power_demand, temperature_ambient, traction_brake_pressure, traction_traction_force, gnss_altitude, gnss_course, gnss_latitude, gnss_longitude, itcs_bus_route_id, itcs_number_of_passengers, itcs_stop_name, odometry_articulation_angle, odometry_steering_angle, odometry_vehicle_speed, odometry_wheel_speed_fl, odometry_wheel_speed_fr, odometry_wheel_speed_ml, odometry_wheel_speed_mr, odometry_wheel_speed_rl, odometry_wheel_speed_rr, status_door_is_open, status_grid_is_available, status_halt_brake_is_active, status_park_brake_is_active FROM telemetry
 WHERE trip_id = $1
 ORDER BY time
 `
@@ -161,7 +161,7 @@ func (q *Queries) GetTelemetryByTrip(ctx context.Context, tripID int32) ([]Telem
 			&i.GnssCourse,
 			&i.GnssLatitude,
 			&i.GnssLongitude,
-			&i.ItcsBusRoute,
+			&i.ItcsBusRouteID,
 			&i.ItcsNumberOfPassengers,
 			&i.ItcsStopName,
 			&i.OdometryArticulationAngle,
@@ -349,6 +349,11 @@ func (q *Queries) GetTripsByTimeRange(ctx context.Context, arg GetTripsByTimeRan
 }
 
 const insertTelemetry = `-- name: InsertTelemetry :exec
+WITH bus_route_id AS (
+  SELECT id
+  FROM bus_routes
+  WHERE route_code = $26
+)
 INSERT INTO telemetry (
   trip_id,
   time,
@@ -357,7 +362,7 @@ INSERT INTO telemetry (
   gnss_course,
   gnss_latitude,
   gnss_longitude,
-  itcs_bus_route,
+  itcs_bus_route_id,
   itcs_number_of_passengers,
   itcs_stop_name,
   odometry_articulation_angle,
@@ -385,6 +390,7 @@ VALUES (
   $5,
   $6,
   $7,
+  (SELECT id FROM bus_route_id),
   $8,
   $9,
   $10,
@@ -402,8 +408,7 @@ VALUES (
   $22,
   $23,
   $24,
-  $25,
-  $26
+  $25
 )
 `
 
@@ -415,8 +420,7 @@ type InsertTelemetryParams struct {
 	GnssCourse                pgtype.Float4
 	GnssLatitude              pgtype.Float4
 	GnssLongitude             pgtype.Float4
-	ItcsBusRoute              pgtype.Text
-	ItcsNumberOfPassengers    pgtype.Float4
+	ItcsNumberOfPassengers    pgtype.Int4
 	ItcsStopName              pgtype.Text
 	OdometryArticulationAngle pgtype.Float4
 	OdometrySteeringAngle     pgtype.Float4
@@ -434,6 +438,7 @@ type InsertTelemetryParams struct {
 	TemperatureAmbient        pgtype.Float4
 	TractionBrakePressure     pgtype.Float4
 	TractionTractionForce     pgtype.Float4
+	BusRoute                  pgtype.Text
 }
 
 func (q *Queries) InsertTelemetry(ctx context.Context, arg InsertTelemetryParams) error {
@@ -445,7 +450,6 @@ func (q *Queries) InsertTelemetry(ctx context.Context, arg InsertTelemetryParams
 		arg.GnssCourse,
 		arg.GnssLatitude,
 		arg.GnssLongitude,
-		arg.ItcsBusRoute,
 		arg.ItcsNumberOfPassengers,
 		arg.ItcsStopName,
 		arg.OdometryArticulationAngle,
@@ -464,6 +468,7 @@ func (q *Queries) InsertTelemetry(ctx context.Context, arg InsertTelemetryParams
 		arg.TemperatureAmbient,
 		arg.TractionBrakePressure,
 		arg.TractionTractionForce,
+		arg.BusRoute,
 	)
 	return err
 }
@@ -560,7 +565,7 @@ func (q *Queries) ListRoutes(ctx context.Context) ([]BusRoute, error) {
 }
 
 const listTelemetryInRange = `-- name: ListTelemetryInRange :many
-SELECT id, trip_id, time, electric_power_demand, temperature_ambient, traction_brake_pressure, traction_traction_force, gnss_altitude, gnss_course, gnss_latitude, gnss_longitude, itcs_bus_route, itcs_number_of_passengers, itcs_stop_name, odometry_articulation_angle, odometry_steering_angle, odometry_vehicle_speed, odometry_wheel_speed_fl, odometry_wheel_speed_fr, odometry_wheel_speed_ml, odometry_wheel_speed_mr, odometry_wheel_speed_rl, odometry_wheel_speed_rr, status_door_is_open, status_grid_is_available, status_halt_brake_is_active, status_park_brake_is_active FROM telemetry
+SELECT id, trip_id, time, electric_power_demand, temperature_ambient, traction_brake_pressure, traction_traction_force, gnss_altitude, gnss_course, gnss_latitude, gnss_longitude, itcs_bus_route_id, itcs_number_of_passengers, itcs_stop_name, odometry_articulation_angle, odometry_steering_angle, odometry_vehicle_speed, odometry_wheel_speed_fl, odometry_wheel_speed_fr, odometry_wheel_speed_ml, odometry_wheel_speed_mr, odometry_wheel_speed_rl, odometry_wheel_speed_rr, status_door_is_open, status_grid_is_available, status_halt_brake_is_active, status_park_brake_is_active FROM telemetry
 WHERE trip_id = $1
   AND time >= $2
   AND time <= $3
@@ -594,7 +599,7 @@ func (q *Queries) ListTelemetryInRange(ctx context.Context, arg ListTelemetryInR
 			&i.GnssCourse,
 			&i.GnssLatitude,
 			&i.GnssLongitude,
-			&i.ItcsBusRoute,
+			&i.ItcsBusRouteID,
 			&i.ItcsNumberOfPassengers,
 			&i.ItcsStopName,
 			&i.OdometryArticulationAngle,
@@ -646,7 +651,7 @@ type UpdateTripParams struct {
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
 	DrivenDistanceKm     pgtype.Float4
-	EnergyConsumptionKWh pgtype.Float4
+	EnergyConsumptionKWh pgtype.Int4
 	ItcsPassengersMean   pgtype.Float4
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4

@@ -19,7 +19,7 @@ CREATE TABLE trips (
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     driven_distance_km REAL,
-    energy_consumption_kWh REAL,
+    energy_consumption_kWh INTEGER,
     
     -- ITCS passenger stats
     itcs_passengers_mean REAL,
@@ -53,8 +53,8 @@ CREATE TABLE telemetry (
     gnss_longitude REAL,
 
     -- itcs
-    itcs_bus_route TEXT,
-    itcs_number_of_passengers REAL,
+    itcs_bus_route_id INTEGER REFERENCES bus_routes(id) ON DELETE CASCADE,
+    itcs_number_of_passengers INTEGER,
     itcs_stop_name TEXT,
 
     -- Odemetry

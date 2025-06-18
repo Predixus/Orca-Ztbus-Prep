@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -212,27 +211,97 @@ func runCLI(flags cliFlags) error {
 		}
 
 		// grab the trip info for this metadata
-		qtx.CreateTrip(ctx, CreateTripParams{
-			Name:                 m.Name,
-			BusID:                pgtype.Int4{Int32: busId, Valid: true},
-			RouteID:              pgtype.Int4{Int32: routeId, Valid: true},
-			StartTime:            pgtype.Timestamp{Time: time.Unix(m.StartTimeUnix)},
-			EndTime:              pgtype.Timestamp{Time: time.Unix(m.EndTimeUnix)},
-			DrivenDistanceKm:     m.DrivenDistance,
-			EnergyConsumptionKWh: m.EnergyConsumption,
-			ItcsPassengersMean:   m.ItcsNumberOfPassengersMean,
-			ItcsPassengersMin:    m.ItcsNumberOfPassengersMin,
-			ItcsPassengersMax:    m.ItcsNumberOfPassengersMax,
-			GridAvailableMean:    m.StatusGridIsAvailableMean,
-			TemperatureMean:      m.TemperatureAmbientMean,
-			TemperatureMin:       m.TemperatureAmbientMin,
-			TemperatureMax:       m.TemperatureAmbientMax,
+		tripId, err := qtx.CreateTrip(ctx, CreateTripParams{
+			Name:    m.Name,
+			BusID:   pgtype.Int4{Int32: busId},
+			RouteID: pgtype.Int4{Int32: routeId},
+			StartTime: pgtype.Timestamp{
+				Time: time.Unix(int64(m.StartTimeUnix), int64(0)),
+			},
+			EndTime:              pgtype.Timestamp{Time: time.Unix(int64(m.EndTimeUnix), int64(0))},
+			DrivenDistanceKm:     pgtype.Float4{Float32: float32(m.DrivenDistance)},
+			EnergyConsumptionKWh: pgtype.Int4{Int32: int32(m.EnergyConsumption)},
+			ItcsPassengersMean:   pgtype.Float4{Float32: float32(m.ItcsNumberOfPassengersMean)},
+			ItcsPassengersMin:    pgtype.Int4{Int32: int32(m.ItcsNumberOfPassengersMin)},
+			ItcsPassengersMax:    pgtype.Int4{Int32: int32(m.ItcsNumberOfPassengersMax)},
+			GridAvailableMean:    pgtype.Float4{Float32: float32(m.StatusGridIsAvailableMean)},
+			TemperatureMean:      pgtype.Float4{Float32: float32(m.TemperatureAmbientMean)},
+			TemperatureMin:       pgtype.Float4{Float32: float32(m.TemperatureAmbientMin)},
+			TemperatureMax:       pgtype.Float4{Float32: float32(m.TemperatureAmbientMax)},
 		})
+		if err != nil {
+			return fmt.Errorf("could not create trip: %v", err)
+		}
 
 		// go through each row and gear up the
-	}
-	if err != nil {
-		return fmt.Errorf("Could not parse metadata file: %v", err)
+		tripTelemetry, err := ParseTripTelemetryCSV(filepath.Join(flags.dataDir, m.Name+".csv"))
+		for _, telemRow := range tripTelemetry {
+			err := qtx.InsertTelemetry(ctx, InsertTelemetryParams{
+				TripID: tripId,
+				Time: pgtype.Timestamp{
+					Time: time.Unix(int64(telemRow.TimeUnix), int64(0)),
+				},
+				ElectricPowerDemand: pgtype.Float4{
+					Float32: float32(telemRow.ElectricPowerDemand),
+				},
+				GnssAltitude:  pgtype.Float4{Float32: float32(*telemRow.GnssAltitude)},
+				GnssCourse:    pgtype.Float4{Float32: float32(*telemRow.GnssCourse)},
+				GnssLatitude:  pgtype.Float4{Float32: float32(*telemRow.GnssLatitude)},
+				GnssLongitude: pgtype.Float4{Float32: float32(*telemRow.GnssLongitude)},
+				ItcsNumberOfPassengers: pgtype.Int4{
+					Int32: int32(*telemRow.ItcsNumberOfPassengers),
+				},
+				ItcsStopName: pgtype.Text{String: *telemRow.ItcsStopName},
+				OdometryArticulationAngle: pgtype.Float4{
+					Float32: float32(telemRow.OdometryArticulationAngle),
+				},
+				OdometrySteeringAngle: pgtype.Float4{
+					Float32: float32(telemRow.OdometrySteeringAngle),
+				},
+				OdometryVehicleSpeed: pgtype.Float4{
+					Float32: float32(telemRow.OdometryVehicleSpeed),
+				},
+				OdometryWheelSpeedFl: pgtype.Float4{
+					Float32: float32(telemRow.OdometryWheelSpeedFl),
+				},
+				OdometryWheelSpeedFr: pgtype.Float4{
+					Float32: float32(telemRow.OdometryWheelSpeedFr),
+				},
+				OdometryWheelSpeedMl: pgtype.Float4{
+					Float32: float32(telemRow.OdometryWheelSpeedMl),
+				},
+				OdometryWheelSpeedMr: pgtype.Float4{
+					Float32: float32(telemRow.OdometryWheelSpeedMr),
+				},
+				OdometryWheelSpeedRl: pgtype.Float4{
+					Float32: float32(telemRow.OdometryWheelSpeedRl),
+				},
+				OdometryWheelSpeedRr: pgtype.Float4{
+					Float32: float32(telemRow.OdometryWheelSpeedRr),
+				},
+				StatusDoorIsOpen:        pgtype.Bool{Bool: telemRow.StatusDoorIsOpen},
+				StatusGridIsAvailable:   pgtype.Bool{Bool: telemRow.StatusGridIsAvailable},
+				StatusHaltBrakeIsActive: pgtype.Bool{Bool: telemRow.StatusHaltBrakeIsActive},
+				StatusParkBrakeIsActive: pgtype.Bool{Bool: telemRow.StatusParkBrakeIsActive},
+				TemperatureAmbient: pgtype.Float4{
+					Float32: float32(telemRow.TemperatureAmbient),
+				},
+				TractionBrakePressure: pgtype.Float4{
+					Float32: float32(telemRow.TractionBrakePressure),
+				},
+				TractionTractionForce: pgtype.Float4{
+					Float32: float32(telemRow.TractionTractionForce),
+				},
+				BusRoute: pgtype.Text{String: telemRow.ItcsBusRoute},
+			})
+			if err != nil {
+				return fmt.Errorf("could not insert telemetry row: %v", err)
+			}
+		}
+		err = tx.Commit(ctx)
+		if err != nil {
+			return fmt.Errorf("could not commit trip transaction: %v", err)
+		}
 	}
 	return nil
 }

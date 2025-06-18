@@ -100,6 +100,11 @@ SELECT * FROM bus_routes
 ORDER BY route_code;
 
 -- name: InsertTelemetry :exec
+WITH bus_route_id AS (
+  SELECT id
+  FROM bus_routes
+  WHERE route_code = sqlc.arg('bus_route')
+)
 INSERT INTO telemetry (
   trip_id,
   time,
@@ -108,7 +113,7 @@ INSERT INTO telemetry (
   gnss_course,
   gnss_latitude,
   gnss_longitude,
-  itcs_bus_route,
+  itcs_bus_route_id,
   itcs_number_of_passengers,
   itcs_stop_name,
   odometry_articulation_angle,
@@ -136,7 +141,7 @@ VALUES (
   sqlc.arg('gnss_course'),
   sqlc.arg('gnss_latitude'),
   sqlc.arg('gnss_longitude'),
-  sqlc.arg('itcs_bus_route'),
+  (SELECT id FROM bus_route_id),
   sqlc.arg('itcs_number_of_passengers'),
   sqlc.arg('itcs_stop_name'),
   sqlc.arg('odometry_articulation_angle'),

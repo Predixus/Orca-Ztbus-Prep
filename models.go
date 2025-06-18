@@ -30,8 +30,8 @@ type Telemetry struct {
 	GnssCourse                pgtype.Float4
 	GnssLatitude              pgtype.Float4
 	GnssLongitude             pgtype.Float4
-	ItcsBusRoute              pgtype.Text
-	ItcsNumberOfPassengers    pgtype.Float4
+	ItcsBusRouteID            pgtype.Int4
+	ItcsNumberOfPassengers    pgtype.Int4
 	ItcsStopName              pgtype.Text
 	OdometryArticulationAngle pgtype.Float4
 	OdometrySteeringAngle     pgtype.Float4
@@ -56,7 +56,7 @@ type Trip struct {
 	StartTime            pgtype.Timestamp
 	EndTime              pgtype.Timestamp
 	DrivenDistanceKm     pgtype.Float4
-	EnergyConsumptionKwh pgtype.Float4
+	EnergyConsumptionKwh pgtype.Int4
 	ItcsPassengersMean   pgtype.Float4
 	ItcsPassengersMin    pgtype.Int4
 	ItcsPassengersMax    pgtype.Int4

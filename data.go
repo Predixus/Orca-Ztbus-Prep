@@ -16,8 +16,8 @@ type Metadata struct {
 	BusRoute                   string
 	EnergyConsumption          int
 	ItcsNumberOfPassengersMean float64
-	ItcsNumberOfPassengersMin  float64
-	ItcsNumberOfPassengersMax  float64
+	ItcsNumberOfPassengersMin  int
+	ItcsNumberOfPassengersMax  int
 	StatusGridIsAvailableMean  float64
 	TemperatureAmbientMean     float64
 	TemperatureAmbientMin      float64
@@ -44,7 +44,7 @@ type TripTelemetry struct {
 	OdometryWheelSpeedRl      float64
 	OdometryWheelSpeedRr      float64
 	StatusDoorIsOpen          bool
-	TatusGridIsAvailable      bool
+	StatusGridIsAvailable     bool
 	StatusHaltBrakeIsActive   bool
 	StatusParkBrakeIsActive   bool
 	TemperatureAmbient        float64
@@ -127,8 +127,8 @@ func ParseMetadataCSV(path string) ([]Metadata, error) {
 			BusRoute:                   get("busRoute"),
 			EnergyConsumption:          parseI(get("energyConsumption")),
 			ItcsNumberOfPassengersMean: parseF(get("itcs_numberOfPassengers_mean")),
-			ItcsNumberOfPassengersMin:  parseF(get("itcs_numberOfPassengers_min")),
-			ItcsNumberOfPassengersMax:  parseF(get("itcs_numberOfPassengers_max")),
+			ItcsNumberOfPassengersMin:  parseI(get("itcs_numberOfPassengers_min")),
+			ItcsNumberOfPassengersMax:  parseI(get("itcs_numberOfPassengers_max")),
 			StatusGridIsAvailableMean:  parseF(get("status_gridIsAvailable_mean")),
 			TemperatureAmbientMean:     parseF(get("temperature_ambient_mean")),
 			TemperatureAmbientMin:      parseF(get("temperature_ambient_min")),
@@ -209,7 +209,7 @@ func ParseTripTelemetryCSV(path string) ([]TripTelemetry, error) {
 			OdometryWheelSpeedRl:      parseF(get("odometry_wheelSpeed_rl")),
 			OdometryWheelSpeedRr:      parseF(get("odometry_wheelSpeed_rr")),
 			StatusDoorIsOpen:          parseB(get("status_doorIsOpen")),
-			TatusGridIsAvailable:      parseB(get("tatus_gridIsAvailable")),
+			StatusGridIsAvailable:     parseB(get("status_gridIsAvailable")),
 			StatusHaltBrakeIsActive:   parseB(get("status_haltBrakeIsActive")),
 			StatusParkBrakeIsActive:   parseB(get("status_parkBrakeIsActive")),
 			TemperatureAmbient:        parseF(get("temperature_ambient")),
