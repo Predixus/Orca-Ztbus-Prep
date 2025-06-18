@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/schollz/progressbar/v3"
 ) // cli flags
 type cliFlags struct {
 	connStr  string
@@ -189,7 +190,9 @@ func runCLI(flags cliFlags) error {
 	queries := New(db)
 
 	// for each trip
+	bar := progressbar.Default(int64(len(metadata)))
 	for _, m := range metadata {
+		bar.Add(1)
 		tx, err := db.Begin(ctx)
 		if err != nil {
 			return fmt.Errorf("Could not start the transaction: %v", err)
@@ -213,21 +216,52 @@ func runCLI(flags cliFlags) error {
 		// grab the trip info for this metadata
 		tripId, err := qtx.CreateTrip(ctx, CreateTripParams{
 			Name:    m.Name,
-			BusID:   pgtype.Int4{Int32: busId},
-			RouteID: pgtype.Int4{Int32: routeId},
+			BusID:   pgtype.Int4{Int32: busId, Valid: true},
+			RouteID: pgtype.Int4{Int32: routeId, Valid: true},
 			StartTime: pgtype.Timestamp{
-				Time: time.Unix(int64(m.StartTimeUnix), int64(0)),
+				Time:  time.Unix(int64(m.StartTimeUnix), 0),
+				Valid: true,
 			},
-			EndTime:              pgtype.Timestamp{Time: time.Unix(int64(m.EndTimeUnix), int64(0))},
-			DrivenDistanceKm:     pgtype.Float4{Float32: float32(m.DrivenDistance)},
-			EnergyConsumptionKWh: pgtype.Int4{Int32: int32(m.EnergyConsumption)},
-			ItcsPassengersMean:   pgtype.Float4{Float32: float32(m.ItcsNumberOfPassengersMean)},
-			ItcsPassengersMin:    pgtype.Int4{Int32: int32(m.ItcsNumberOfPassengersMin)},
-			ItcsPassengersMax:    pgtype.Int4{Int32: int32(m.ItcsNumberOfPassengersMax)},
-			GridAvailableMean:    pgtype.Float4{Float32: float32(m.StatusGridIsAvailableMean)},
-			TemperatureMean:      pgtype.Float4{Float32: float32(m.TemperatureAmbientMean)},
-			TemperatureMin:       pgtype.Float4{Float32: float32(m.TemperatureAmbientMin)},
-			TemperatureMax:       pgtype.Float4{Float32: float32(m.TemperatureAmbientMax)},
+			EndTime: pgtype.Timestamp{
+				Time:  time.Unix(int64(m.EndTimeUnix), 0),
+				Valid: true,
+			},
+			DrivenDistanceKm: pgtype.Float4{
+				Float32: float32(m.DrivenDistance),
+				Valid:   true,
+			},
+			EnergyConsumptionKWh: pgtype.Int4{
+				Int32: int32(m.EnergyConsumption),
+				Valid: true,
+			},
+			ItcsPassengersMean: pgtype.Float4{
+				Float32: float32(m.ItcsNumberOfPassengersMean),
+				Valid:   true,
+			},
+			ItcsPassengersMin: pgtype.Int4{
+				Int32: int32(m.ItcsNumberOfPassengersMin),
+				Valid: true,
+			},
+			ItcsPassengersMax: pgtype.Int4{
+				Int32: int32(m.ItcsNumberOfPassengersMax),
+				Valid: true,
+			},
+			GridAvailableMean: pgtype.Float4{
+				Float32: float32(m.StatusGridIsAvailableMean),
+				Valid:   true,
+			},
+			TemperatureMean: pgtype.Float4{
+				Float32: float32(m.TemperatureAmbientMean),
+				Valid:   true,
+			},
+			TemperatureMin: pgtype.Float4{
+				Float32: float32(m.TemperatureAmbientMin),
+				Valid:   true,
+			},
+			TemperatureMax: pgtype.Float4{
+				Float32: float32(m.TemperatureAmbientMax),
+				Valid:   true,
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("could not create trip: %v", err)
@@ -239,60 +273,105 @@ func runCLI(flags cliFlags) error {
 			err := qtx.InsertTelemetry(ctx, InsertTelemetryParams{
 				TripID: tripId,
 				Time: pgtype.Timestamp{
-					Time: time.Unix(int64(telemRow.TimeUnix), int64(0)),
+					Time:  time.Unix(int64(telemRow.TimeUnix), 0),
+					Valid: true,
 				},
 				ElectricPowerDemand: pgtype.Float4{
 					Float32: float32(telemRow.ElectricPowerDemand),
+					Valid:   true,
 				},
-				GnssAltitude:  pgtype.Float4{Float32: float32(*telemRow.GnssAltitude)},
-				GnssCourse:    pgtype.Float4{Float32: float32(*telemRow.GnssCourse)},
-				GnssLatitude:  pgtype.Float4{Float32: float32(*telemRow.GnssLatitude)},
-				GnssLongitude: pgtype.Float4{Float32: float32(*telemRow.GnssLongitude)},
+				GnssAltitude: pgtype.Float4{
+					Float32: float32(*telemRow.GnssAltitude),
+					Valid:   telemRow.GnssAltitude != nil,
+				},
+				GnssCourse: pgtype.Float4{
+					Float32: float32(*telemRow.GnssCourse),
+					Valid:   telemRow.GnssCourse != nil,
+				},
+				GnssLatitude: pgtype.Float4{
+					Float32: float32(*telemRow.GnssLatitude),
+					Valid:   telemRow.GnssLatitude != nil,
+				},
+				GnssLongitude: pgtype.Float4{
+					Float32: float32(*telemRow.GnssLongitude),
+					Valid:   telemRow.GnssLongitude != nil,
+				},
 				ItcsNumberOfPassengers: pgtype.Int4{
 					Int32: int32(*telemRow.ItcsNumberOfPassengers),
+					Valid: telemRow.ItcsNumberOfPassengers != nil,
 				},
-				ItcsStopName: pgtype.Text{String: *telemRow.ItcsStopName},
+				ItcsStopName: pgtype.Text{
+					String: *telemRow.ItcsStopName,
+					Valid:  telemRow.ItcsStopName != nil,
+				},
 				OdometryArticulationAngle: pgtype.Float4{
 					Float32: float32(telemRow.OdometryArticulationAngle),
+					Valid:   true,
 				},
 				OdometrySteeringAngle: pgtype.Float4{
 					Float32: float32(telemRow.OdometrySteeringAngle),
+					Valid:   true,
 				},
 				OdometryVehicleSpeed: pgtype.Float4{
 					Float32: float32(telemRow.OdometryVehicleSpeed),
+					Valid:   true,
 				},
 				OdometryWheelSpeedFl: pgtype.Float4{
 					Float32: float32(telemRow.OdometryWheelSpeedFl),
+					Valid:   true,
 				},
 				OdometryWheelSpeedFr: pgtype.Float4{
 					Float32: float32(telemRow.OdometryWheelSpeedFr),
+					Valid:   true,
 				},
 				OdometryWheelSpeedMl: pgtype.Float4{
 					Float32: float32(telemRow.OdometryWheelSpeedMl),
+					Valid:   true,
 				},
 				OdometryWheelSpeedMr: pgtype.Float4{
 					Float32: float32(telemRow.OdometryWheelSpeedMr),
+					Valid:   true,
 				},
 				OdometryWheelSpeedRl: pgtype.Float4{
 					Float32: float32(telemRow.OdometryWheelSpeedRl),
+					Valid:   true,
 				},
 				OdometryWheelSpeedRr: pgtype.Float4{
 					Float32: float32(telemRow.OdometryWheelSpeedRr),
+					Valid:   true,
 				},
-				StatusDoorIsOpen:        pgtype.Bool{Bool: telemRow.StatusDoorIsOpen},
-				StatusGridIsAvailable:   pgtype.Bool{Bool: telemRow.StatusGridIsAvailable},
-				StatusHaltBrakeIsActive: pgtype.Bool{Bool: telemRow.StatusHaltBrakeIsActive},
-				StatusParkBrakeIsActive: pgtype.Bool{Bool: telemRow.StatusParkBrakeIsActive},
+				StatusDoorIsOpen: pgtype.Bool{
+					Bool:  telemRow.StatusDoorIsOpen,
+					Valid: true,
+				},
+				StatusGridIsAvailable: pgtype.Bool{
+					Bool:  telemRow.StatusGridIsAvailable,
+					Valid: true,
+				},
+				StatusHaltBrakeIsActive: pgtype.Bool{
+					Bool:  telemRow.StatusHaltBrakeIsActive,
+					Valid: true,
+				},
+				StatusParkBrakeIsActive: pgtype.Bool{
+					Bool:  telemRow.StatusParkBrakeIsActive,
+					Valid: true,
+				},
 				TemperatureAmbient: pgtype.Float4{
 					Float32: float32(telemRow.TemperatureAmbient),
+					Valid:   true,
 				},
 				TractionBrakePressure: pgtype.Float4{
 					Float32: float32(telemRow.TractionBrakePressure),
+					Valid:   true,
 				},
 				TractionTractionForce: pgtype.Float4{
 					Float32: float32(telemRow.TractionTractionForce),
+					Valid:   true,
 				},
-				BusRoute: pgtype.Text{String: telemRow.ItcsBusRoute},
+				BusRoute: pgtype.Text{
+					String: telemRow.ItcsBusRoute,
+					Valid:  true,
+				},
 			})
 			if err != nil {
 				return fmt.Errorf("could not insert telemetry row: %v", err)
