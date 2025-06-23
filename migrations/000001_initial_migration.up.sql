@@ -37,7 +37,8 @@ CREATE TABLE trips (
 
 -- Trip telemetry
 CREATE TABLE telemetry (
-    id SERIAL PRIMARY KEY,
+    id SERIAL,
+    unique (id, time),
     trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     time TIMESTAMP NOT NULL,
 
@@ -73,10 +74,9 @@ CREATE TABLE telemetry (
     status_grid_is_available BOOLEAN,
     status_halt_brake_is_active BOOLEAN,
     status_park_brake_is_active BOOLEAN
+)
+WITH (
+  timescaledb.hypertable,
+  timescaledb.partition_column='time',
+  timescaledb.segmentby='trip_id'
 );
-
--- Indexes for query speed
-CREATE INDEX idx_trips_start_time ON trips(start_time);
-CREATE INDEX idx_trips_bus_id ON trips(bus_id);
-CREATE INDEX idx_trips_route_id ON trips(route_id);
-CREATE INDEX idx_telemetry_trip_time ON telemetry(trip_id, time);

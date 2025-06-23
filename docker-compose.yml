@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: timescale/timescaledb-ha:pg17
     container_name: ztbus_pg
     environment:
       POSTGRES_USER: ztbus
