@@ -38,9 +38,9 @@ CREATE TABLE trips (
 -- Trip telemetry
 CREATE TABLE telemetry (
     id SERIAL,
-    unique (id, time),
     trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     time TIMESTAMP NOT NULL,
+    UNIQUE(id, time),
 
     electric_power_demand REAL,
     temperature_ambient REAL,
@@ -80,3 +80,9 @@ WITH (
   timescaledb.partition_column='time',
   timescaledb.segmentby='trip_id'
 );
+
+-- Indexes for query speed
+CREATE INDEX idx_trips_start_time ON trips(start_time);
+CREATE INDEX idx_trips_bus_id ON trips(bus_id);
+CREATE INDEX idx_trips_route_id ON trips(route_id);
+CREATE INDEX idx_telemetry_trip_time ON telemetry(trip_id, time);
