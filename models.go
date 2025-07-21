@@ -19,7 +19,37 @@ type BusRoute struct {
 }
 
 type Telemetry struct {
-	ID                        int32
+	ID                        int64
+	TripID                    int32
+	Time                      pgtype.Timestamp
+	ElectricPowerDemand       pgtype.Float4
+	TemperatureAmbient        pgtype.Float4
+	TractionBrakePressure     pgtype.Float4
+	TractionTractionForce     pgtype.Float4
+	GnssAltitude              pgtype.Float4
+	GnssCourse                pgtype.Float4
+	GnssLatitude              pgtype.Float4
+	GnssLongitude             pgtype.Float4
+	ItcsBusRouteID            pgtype.Int4
+	ItcsNumberOfPassengers    pgtype.Int4
+	ItcsStopName              pgtype.Text
+	OdometryArticulationAngle pgtype.Float4
+	OdometrySteeringAngle     pgtype.Float4
+	OdometryVehicleSpeed      pgtype.Float4
+	OdometryWheelSpeedFl      pgtype.Float4
+	OdometryWheelSpeedFr      pgtype.Float4
+	OdometryWheelSpeedMl      pgtype.Float4
+	OdometryWheelSpeedMr      pgtype.Float4
+	OdometryWheelSpeedRl      pgtype.Float4
+	OdometryWheelSpeedRr      pgtype.Float4
+	StatusDoorIsOpen          pgtype.Bool
+	StatusGridIsAvailable     pgtype.Bool
+	StatusHaltBrakeIsActive   pgtype.Bool
+	StatusParkBrakeIsActive   pgtype.Bool
+}
+
+type TelemetryDefault struct {
+	ID                        int64
 	TripID                    int32
 	Time                      pgtype.Timestamp
 	ElectricPowerDemand       pgtype.Float4

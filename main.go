@@ -1,3 +1,4 @@
+// main
 package main
 
 import (
@@ -19,9 +20,9 @@ import (
 
 // batch processing config
 const (
-	BATCH_SIZE   = 1000 // number of telemetry records per batch
-	WORKER_COUNT = 100  // number of worker goroutines
-	BUFFER_SIZE  = 400  // channel buffer size
+	BatchSize   = 5000 // number of telemetry records per batch
+	WorkerCount = 10   // number of worker goroutines
+	BufferSize  = 50   // channel buffer size
 )
 
 // batch job structure
@@ -66,7 +67,7 @@ var connectionTemplates = map[string]connStringTemplate{
 // validation functions
 func ValidateDatalayer(s string) error {
 	if s == "" {
-		return fmt.Errorf("Select a datalayer")
+		return fmt.Errorf("select a datalayer")
 	}
 	for _, v := range datalayerSuggestions {
 		if s == v {
@@ -74,12 +75,12 @@ func ValidateDatalayer(s string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("Unsuported datalayer: %s", s)
+	return fmt.Errorf("unsuported datalayer: %s", s)
 }
 
 func ValidateConnStr(s string) error {
 	if s == "" {
-		return errors.New("Connection string cannot be empty")
+		return errors.New("connection string cannot be empty")
 	}
 	template, ok := connectionTemplates[currentDatalayer]
 	if !ok { // should never occur
@@ -91,18 +92,18 @@ func ValidateConnStr(s string) error {
 
 func ValidatePort(s string) error {
 	if s == "" {
-		return errors.New("You have to select a port number")
+		return errors.New("you have to select a port number")
 	}
 
 	// try to lookup the port to validate it
 	if _, err := net.LookupPort("tcp", s); err != nil {
-		return fmt.Errorf("Invalid port number '%s' (must be between 1-65535)", s)
+		return fmt.Errorf("invalid port number '%s' (must be between 1-65535)", s)
 	}
 
 	// check if port is already in use
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", s))
 	if err != nil {
-		return fmt.Errorf("Port %s is already in use", s)
+		return fmt.Errorf("port %s is already in use", s)
 	}
 	listener.Close()
 
@@ -171,7 +172,6 @@ func validateFlags(flags cliFlags) error {
 	return nil
 }
 
-// worker function that processes telemetry batches
 func telemetryWorker(
 	ctx context.Context,
 	pool *pgxpool.Pool,
@@ -182,27 +182,29 @@ func telemetryWorker(
 	defer wg.Done()
 
 	for batch := range jobs {
-		// get a connection from the pool
-		conn, err := pool.Acquire(ctx)
-		if err != nil {
-			results <- fmt.Errorf("could not acquire connection: %v", err)
-			continue
-		}
+		err := func() error {
+			conn, err := pool.Acquire(ctx)
+			if err != nil {
+				return fmt.Errorf("could not acquire connection: %v", err)
+			}
+			defer conn.Release()
 
-		// start transaction
-		tx, err := conn.Begin(ctx)
-		if err != nil {
-			conn.Release()
-			results <- fmt.Errorf("could not start batch transaction: %v", err)
-			continue
-		}
+			tx, err := conn.Begin(ctx)
+			if err != nil {
+				return fmt.Errorf("could not start transaction: %v", err)
+			}
+			defer tx.Rollback(ctx)
+			qtx := New(tx).WithTx(tx)
 
-		queries := New(tx)
+			routeID, err := qtx.GetBusRouteIdFromTripId(ctx, batch.TripID)
+			if err != nil {
+				slog.Error("could not get bus route id", "error", err)
+				return err
+			}
+			telemetryParams := make([]InsertTelemetryParams, len(batch.Records))
 
-		// process all records in this batch
-		batchErr := func() error {
-			for _, telemRow := range batch.Records {
-				err := queries.InsertTelemetry(ctx, InsertTelemetryParams{
+			for ii, telemRow := range batch.Records {
+				telemetryParams[ii] = InsertTelemetryParams{
 					TripID: batch.TripID,
 					Time: pgtype.Timestamp{
 						Time:  time.Unix(int64(telemRow.TimeUnix), 0),
@@ -300,65 +302,50 @@ func telemetryWorker(
 						Float32: float32(telemRow.TractionTractionForce),
 						Valid:   true,
 					},
-					BusRoute: pgtype.Text{
-						String: telemRow.ItcsBusRoute,
-						Valid:  true,
-					},
-				})
-				if err != nil {
-					return fmt.Errorf(
-						"could not insert telemetry row in batch %d/%d: %v",
-						batch.BatchID,
-						batch.TotalBatches,
-						err,
-					)
+					BusRouteID: routeID,
 				}
 			}
+
+			count, err := qtx.InsertTelemetry(ctx, telemetryParams)
+			if err != nil {
+				return fmt.Errorf("error during COPY FROM: %v", err)
+			}
+
+			if err := tx.Commit(ctx); err != nil {
+				return fmt.Errorf("could not commit transaction: %v", err)
+			}
+
+			slog.Info("written results", "count", count)
+
 			return nil
 		}()
 
-		if batchErr != nil {
-			tx.Rollback(ctx)
-			conn.Release()
-			results <- batchErr
-			continue
+		if err != nil {
+			results <- fmt.Errorf("batch %d/%d failed: %v", batch.BatchID, batch.TotalBatches, err)
+		} else {
+			results <- nil
+			slog.Info(
+				"Completed telemetry batch",
+				"batch", fmt.Sprintf("%d/%d", batch.BatchID, batch.TotalBatches),
+				"records", len(batch.Records),
+			)
 		}
-
-		// commit the batch transaction
-		if err := tx.Commit(ctx); err != nil {
-			conn.Release()
-			results <- fmt.Errorf("could not commit batch %d/%d transaction: %v", batch.BatchID, batch.TotalBatches, err)
-			continue
-		}
-
-		conn.Release()
-
-		// signal successful completion
-		results <- nil
-
-		slog.Info(
-			"Completed telemetry batch",
-			"batch",
-			fmt.Sprintf("%d/%d", batch.BatchID, batch.TotalBatches),
-			"records",
-			len(batch.Records),
-		)
 	}
 }
 
 // helper function to split telemetry data into batches
 func createTelemetryBatches(tripID int32, telemetryData []TripTelemetry) []TelemetryBatch {
 	var batches []TelemetryBatch
-	totalBatches := (len(telemetryData) + BATCH_SIZE - 1) / BATCH_SIZE // ceiling division
+	totalBatches := (len(telemetryData) + BatchSize - 1) / BatchSize // ceiling division
 
-	for i := 0; i < len(telemetryData); i += BATCH_SIZE {
-		end := i + BATCH_SIZE
+	for i := 0; i < len(telemetryData); i += BatchSize {
+		end := i + BatchSize
 		end = min(end, len(telemetryData))
 
 		batch := TelemetryBatch{
 			TripID:       tripID,
 			Records:      telemetryData[i:end],
-			BatchID:      (i / BATCH_SIZE) + 1,
+			BatchID:      (i / BatchSize) + 1,
 			TotalBatches: totalBatches,
 		}
 		batches = append(batches, batch)
@@ -406,8 +393,10 @@ func runCLI(flags cliFlags) error {
 	}
 
 	// configure pool settings for optimal performance
-	poolConfig.MaxConns = int32(WORKER_COUNT + 2) // workers + some buffer for main operations
-	poolConfig.MinConns = 2
+	poolConfig.MaxConns = int32(15) // workers + some buffer for main operations
+	poolConfig.MinConns = 5
+	poolConfig.MaxConnLifetime = time.Hour
+	poolConfig.MaxConnIdleTime = time.Minute * 30
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return fmt.Errorf("error creating connection pool: %v", err)
@@ -429,30 +418,30 @@ func runCLI(flags cliFlags) error {
 		// Start transaction for trip creation
 		tx, err := tripConn.Begin(ctx)
 		if err != nil {
-			return fmt.Errorf("Could not start the transaction: %v", err)
+			return fmt.Errorf("could not start the transaction: %v", err)
 		}
 
 		qtx := New(tx)
 
 		// add bus
-		busId, err := qtx.CreateBus(ctx, pgtype.Text{String: m.BusNumber, Valid: true})
+		busID, err := qtx.CreateBus(ctx, pgtype.Text{String: m.BusNumber, Valid: true})
 		if err != nil {
 			tx.Rollback(ctx)
 			return fmt.Errorf("could not create bus id: %v", err)
 		}
 
 		// add route
-		routeId, err := qtx.CreateRoute(ctx, pgtype.Text{String: m.BusRoute, Valid: true})
+		routeID, err := qtx.CreateRoute(ctx, pgtype.Text{String: m.BusRoute, Valid: true})
 		if err != nil {
 			tx.Rollback(ctx)
 			return fmt.Errorf("could not create route id: %v", err)
 		}
 
 		// grab the trip info for this metadata
-		tripId, err := qtx.CreateTrip(ctx, CreateTripParams{
+		tripID, err := qtx.CreateTrip(ctx, CreateTripParams{
 			Name:    m.Name,
-			BusID:   pgtype.Int4{Int32: busId, Valid: true},
-			RouteID: pgtype.Int4{Int32: routeId, Valid: true},
+			BusID:   pgtype.Int4{Int32: busID, Valid: true},
+			RouteID: pgtype.Int4{Int32: routeID, Valid: true},
 			StartTime: pgtype.Timestamp{
 				Time:  time.Unix(int64(m.StartTimeUnix), 0),
 				Valid: true,
@@ -521,7 +510,7 @@ func runCLI(flags cliFlags) error {
 		}
 
 		// Create batches for parallel processing
-		batches := createTelemetryBatches(tripId, tripTelemetry)
+		batches := createTelemetryBatches(tripID, tripTelemetry)
 		slog.Info(
 			"Processing telemetry data",
 			"trip",
@@ -533,12 +522,12 @@ func runCLI(flags cliFlags) error {
 		)
 
 		// Set up worker pool for this trip's telemetry
-		jobs := make(chan TelemetryBatch, BUFFER_SIZE)
+		jobs := make(chan TelemetryBatch, BufferSize)
 		results := make(chan error, len(batches))
 		var wg sync.WaitGroup
 
 		// start workers
-		for range WORKER_COUNT {
+		for range WorkerCount {
 			wg.Add(1)
 			go telemetryWorker(ctx, pool, jobs, results, &wg)
 		}

@@ -37,11 +37,10 @@ CREATE TABLE trips (
 
 -- Trip telemetry
 CREATE TABLE telemetry (
-    id SERIAL,
+    id BIGSERIAL,
     trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     time TIMESTAMP NOT NULL,
-    UNIQUE(id, time),
-
+    
     electric_power_demand REAL,
     temperature_ambient REAL,
     traction_brake_pressure REAL,
@@ -73,16 +72,22 @@ CREATE TABLE telemetry (
     status_door_is_open BOOLEAN,
     status_grid_is_available BOOLEAN,
     status_halt_brake_is_active BOOLEAN,
-    status_park_brake_is_active BOOLEAN
-)
-WITH (
-  timescaledb.hypertable,
-  timescaledb.partition_column='time',
-  timescaledb.segmentby='trip_id'
-);
+    status_park_brake_is_active BOOLEAN,
+    
+    -- Composite primary key including partition column
+    PRIMARY KEY (id, time)
+) PARTITION BY RANGE (time);
+
+-- Create default partition for all data initially
+-- This allows immediate use while partitions are created on-demand
+CREATE TABLE telemetry_default PARTITION OF telemetry DEFAULT;
 
 -- Indexes for query speed
 CREATE INDEX idx_trips_start_time ON trips(start_time);
 CREATE INDEX idx_trips_bus_id ON trips(bus_id);
 CREATE INDEX idx_trips_route_id ON trips(route_id);
+
+-- Indexes on the parent table (will be inherited by partitions)
 CREATE INDEX idx_telemetry_trip_time ON telemetry(trip_id, time);
+CREATE INDEX idx_telemetry_time ON telemetry(time);
+CREATE INDEX idx_telemetry_trip_id ON telemetry(trip_id);

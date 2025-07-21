@@ -134,6 +134,28 @@ func (q *Queries) DeleteTripByName(ctx context.Context, name string) error {
 	return err
 }
 
+const getBusRouteId = `-- name: GetBusRouteId :one
+SELECT id FROM bus_routes WHERE route_code = $1
+`
+
+func (q *Queries) GetBusRouteId(ctx context.Context, busRoute pgtype.Text) (int32, error) {
+	row := q.db.QueryRow(ctx, getBusRouteId, busRoute)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getBusRouteIdFromTripId = `-- name: GetBusRouteIdFromTripId :one
+SELECT route_id FROM trips WHERE id = $1
+`
+
+func (q *Queries) GetBusRouteIdFromTripId(ctx context.Context, tripID int32) (pgtype.Int4, error) {
+	row := q.db.QueryRow(ctx, getBusRouteIdFromTripId, tripID)
+	var route_id pgtype.Int4
+	err := row.Scan(&route_id)
+	return route_id, err
+}
+
 const getTelemetryByTrip = `-- name: GetTelemetryByTrip :many
 SELECT id, trip_id, time, electric_power_demand, temperature_ambient, traction_brake_pressure, traction_traction_force, gnss_altitude, gnss_course, gnss_latitude, gnss_longitude, itcs_bus_route_id, itcs_number_of_passengers, itcs_stop_name, odometry_articulation_angle, odometry_steering_angle, odometry_vehicle_speed, odometry_wheel_speed_fl, odometry_wheel_speed_fr, odometry_wheel_speed_ml, odometry_wheel_speed_mr, odometry_wheel_speed_rl, odometry_wheel_speed_rr, status_door_is_open, status_grid_is_available, status_halt_brake_is_active, status_park_brake_is_active FROM telemetry
 WHERE trip_id = $1
@@ -348,70 +370,6 @@ func (q *Queries) GetTripsByTimeRange(ctx context.Context, arg GetTripsByTimeRan
 	return items, nil
 }
 
-const insertTelemetry = `-- name: InsertTelemetry :exec
-WITH bus_route_id AS (
-  SELECT id
-  FROM bus_routes
-  WHERE route_code = $26
-)
-INSERT INTO telemetry (
-  trip_id,
-  time,
-  electric_power_demand,
-  gnss_altitude,
-  gnss_course,
-  gnss_latitude,
-  gnss_longitude,
-  itcs_bus_route_id,
-  itcs_number_of_passengers,
-  itcs_stop_name,
-  odometry_articulation_angle,
-  odometry_steering_angle,
-  odometry_vehicle_speed,
-  odometry_wheel_speed_fl,
-  odometry_wheel_speed_fr,
-  odometry_wheel_speed_ml,
-  odometry_wheel_speed_mr,
-  odometry_wheel_speed_rl,
-  odometry_wheel_speed_rr,
-  status_door_is_open,
-  status_grid_is_available,
-  status_halt_brake_is_active,
-  status_park_brake_is_active,
-  temperature_ambient,
-  traction_brake_pressure,
-  traction_traction_force
-)
-VALUES (
-  $1,
-  $2,
-  $3,
-  $4,
-  $5,
-  $6,
-  $7,
-  (SELECT id FROM bus_route_id),
-  $8,
-  $9,
-  $10,
-  $11,
-  $12,
-  $13,
-  $14,
-  $15,
-  $16,
-  $17,
-  $18,
-  $19,
-  $20,
-  $21,
-  $22,
-  $23,
-  $24,
-  $25
-)
-`
-
 type InsertTelemetryParams struct {
 	TripID                    int32
 	Time                      pgtype.Timestamp
@@ -420,6 +378,7 @@ type InsertTelemetryParams struct {
 	GnssCourse                pgtype.Float4
 	GnssLatitude              pgtype.Float4
 	GnssLongitude             pgtype.Float4
+	BusRouteID                pgtype.Int4
 	ItcsNumberOfPassengers    pgtype.Int4
 	ItcsStopName              pgtype.Text
 	OdometryArticulationAngle pgtype.Float4
@@ -438,39 +397,6 @@ type InsertTelemetryParams struct {
 	TemperatureAmbient        pgtype.Float4
 	TractionBrakePressure     pgtype.Float4
 	TractionTractionForce     pgtype.Float4
-	BusRoute                  pgtype.Text
-}
-
-func (q *Queries) InsertTelemetry(ctx context.Context, arg InsertTelemetryParams) error {
-	_, err := q.db.Exec(ctx, insertTelemetry,
-		arg.TripID,
-		arg.Time,
-		arg.ElectricPowerDemand,
-		arg.GnssAltitude,
-		arg.GnssCourse,
-		arg.GnssLatitude,
-		arg.GnssLongitude,
-		arg.ItcsNumberOfPassengers,
-		arg.ItcsStopName,
-		arg.OdometryArticulationAngle,
-		arg.OdometrySteeringAngle,
-		arg.OdometryVehicleSpeed,
-		arg.OdometryWheelSpeedFl,
-		arg.OdometryWheelSpeedFr,
-		arg.OdometryWheelSpeedMl,
-		arg.OdometryWheelSpeedMr,
-		arg.OdometryWheelSpeedRl,
-		arg.OdometryWheelSpeedRr,
-		arg.StatusDoorIsOpen,
-		arg.StatusGridIsAvailable,
-		arg.StatusHaltBrakeIsActive,
-		arg.StatusParkBrakeIsActive,
-		arg.TemperatureAmbient,
-		arg.TractionBrakePressure,
-		arg.TractionTractionForce,
-		arg.BusRoute,
-	)
-	return err
 }
 
 const listAllTrips = `-- name: ListAllTrips :many
