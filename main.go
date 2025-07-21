@@ -20,9 +20,9 @@ import (
 
 // batch processing config
 const (
-	BatchSize   = 5000 // number of telemetry records per batch
-	WorkerCount = 10   // number of worker goroutines
-	BufferSize  = 50   // channel buffer size
+	BatchSize   = 40000 // number of telemetry records per batch
+	WorkerCount = 10    // number of worker goroutines
+	BufferSize  = 50    // channel buffer size
 )
 
 // batch job structure
