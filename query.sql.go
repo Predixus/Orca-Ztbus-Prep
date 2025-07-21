@@ -552,6 +552,15 @@ func (q *Queries) ListTelemetryInRange(ctx context.Context, arg ListTelemetryInR
 	return items, nil
 }
 
+const makePartitions = `-- name: MakePartitions :exec
+CALL public.run_maintenance_proc()
+`
+
+func (q *Queries) MakePartitions(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, makePartitions)
+	return err
+}
+
 const updateTrip = `-- name: UpdateTrip :exec
 UPDATE trips
 SET

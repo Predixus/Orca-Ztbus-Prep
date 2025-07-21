@@ -315,7 +315,7 @@ func telemetryWorker(
 				return fmt.Errorf("could not commit transaction: %v", err)
 			}
 
-			slog.Info("written results", "count", count)
+			slog.Debug("written results", "count", count)
 
 			return nil
 		}()
@@ -324,7 +324,7 @@ func telemetryWorker(
 			results <- fmt.Errorf("batch %d/%d failed: %v", batch.BatchID, batch.TotalBatches, err)
 		} else {
 			results <- nil
-			slog.Info(
+			slog.Debug(
 				"Completed telemetry batch",
 				"batch", fmt.Sprintf("%d/%d", batch.BatchID, batch.TotalBatches),
 				"records", len(batch.Records),
@@ -362,23 +362,23 @@ func runCLI(flags cliFlags) error {
 
 	// stdout logger
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: slog.LevelInfo,
 	})
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
 	// perform migrations if requested
-	slog.Info("premigration")
+	slog.Debug("premigration")
 	if flags.migrate {
-		slog.Info("migrating datalayer")
+		slog.Debug("migrating datalayer")
 		err := MigrateDatalayer(flags.platform, flags.connStr)
 		if err != nil {
 			slog.Error("could not migrate the datalayer, exiting", "error", err)
 			return err
 		}
 	}
-	slog.Info("postmigration")
-	slog.Info("starting data load")
+	slog.Debug("postmigration")
+	slog.Debug("starting data load")
 
 	metadata, err := ParseMetadataCSV(filepath.Join(flags.dataDir, "metaData.csv"))
 	if err != nil {
@@ -505,13 +505,13 @@ func runCLI(flags cliFlags) error {
 		}
 
 		if len(tripTelemetry) == 0 {
-			slog.Info("No telemetry data for trip", "trip", m.Name)
+			slog.Debug("No telemetry data for trip", "trip", m.Name)
 			continue
 		}
 
 		// Create batches for parallel processing
 		batches := createTelemetryBatches(tripID, tripTelemetry)
-		slog.Info(
+		slog.Debug(
 			"Processing telemetry data",
 			"trip",
 			m.Name,
@@ -562,7 +562,7 @@ func runCLI(flags cliFlags) error {
 			)
 		}
 
-		slog.Info(
+		slog.Debug(
 			"Successfully processed trip",
 			"trip",
 			m.Name,
@@ -571,7 +571,27 @@ func runCLI(flags cliFlags) error {
 		)
 	}
 
-	slog.Info("Data load completed successfully")
+	slog.Debug("Data load completed successfully")
+
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("could not acquire connection: %v", err)
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("could not start transaction: %v", err)
+	}
+	defer tx.Rollback(ctx)
+	qtx := New(tx).WithTx(tx)
+
+	err = qtx.MakePartitions(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create time partitions: %v", err)
+	}
+	slog.Debug("created partitions")
+
 	return nil
 }
 

@@ -179,3 +179,6 @@ ORDER BY time;
 DELETE FROM telemetry
 WHERE trip_id = sqlc.arg('trip_id');
 
+-- name: MakePartitions :exec
+CALL public.run_maintenance_proc();
+
